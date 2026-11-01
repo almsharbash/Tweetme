@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Tweet me</title>
+<style>
+:root{--bg:#f4f8fc;--card:#ffffff;--text:#0b1d3a;--muted:#6b7b93;--accent:#1E6FD9;--accent2:#0EA5E9;--in:#e9f1fb;--border:#dbe5f1}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1220;--card:#111a2d;--text:#e6eefb;--muted:#8fa0bb;--in:#1a2740;--border:#22304a}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:system-ui,Tahoma,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+[hidden]{display:none!important}
+header{background:linear-gradient(135deg,#1E3A8A,#0EA5E9);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+header b{font-size:18px}
+button{font:inherit;border:0;border-radius:10px;padding:9px 14px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;cursor:pointer}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+input,textarea{font:inherit;padding:9px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);width:100%}
+textarea{min-height:90px;direction:ltr}
+.row{display:flex;gap:8px;align-items:center}
+.muted{color:var(--muted);font-size:13px}
+#onboard{max-width:420px;margin:60px auto;padding:20px;display:flex;flex-direction:column;gap:12px;background:var(--card);border-radius:16px;border:1px solid var(--border)}
+#app{flex:1;display:flex;min-height:0}
+aside{width:280px;background:var(--card);border-inline-end:1px solid var(--border);display:flex;flex-direction:column}
+aside .top{padding:10px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--border)}
+#list{overflow-y:auto;flex:1}
+.item{padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer}
+.item.on{background:var(--in)}
+.item small{display:block;color:var(--muted);font-size:12px}
+section{flex:1;display:flex;flex-direction:column;min-width:0}
+#chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+.bubble{max-width:72%;padding:9px 12px;border-radius:14px;white-space:pre-wrap;word-wrap:break-word;align-self:flex-start;background:var(--in)}
+.bubble.out{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.bubble .t{display:block;font-size:11px;opacity:.7;margin-top:4px}
+#composer{display:flex;gap:8px;padding:10px;border-top:1px solid var(--border);background:var(--card)}
+#composer textarea{min-height:44px;max-height:120px}
+#settings{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+#settings .box{background:var(--card);border-radius:16px;padding:18px;width:min(520px,100%);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+code{direction:ltr;display:block;word-break:break-all;background:var(--bg);padding:8px;border-radius:8px;font-size:12px}
+@media (max-width:700px){aside{width:100%}#app.open section{display:none}#app:not(.open) section{display:none}#app:not(.open) aside{display:flex}aside{display:flex}}
+</style>
+</head>
+<body>
+<header>
+  <b>Tweet me</b>
+  <button class="ghost" id="btnSettings" hidden>الإعدادات</button>
+</header>
+
+<div id="onboard" hidden>
+  <h3 style="margin:0">مرحباً بك في Tweet me</h3>
+  <p class="muted" style="margin:0">سيُنشأ مفتاحك على هذا الجهاز. احفظ نسخة احتياطية من المفتاح من الإعدادات، فلا يمكن استرجاعه إن فُقد.</p>
+  <input id="obName" placeholder="اسمك">
+  <button id="btnCreate">إنشاء الحساب</button>
+</div>
+
+<div id="app" hidden>
+  <aside>
+    <div class="top">
+      <div class="row">
+        <input id="ctName" placeholder="اسم جهة الاتصال">
+      </div>
+      <textarea id="ctKey" placeholder="الصق المفتاح العام للجهة" style="min-height:60px"></textarea>
+      <button id="btnAdd">إضافة جهة اتصال</button>
+    </div>
+    <div id="list"></div>
+  </aside>
+  <section>
+    <div id="chatHead" class="top" style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--card)">
+      <b id="peerName">اختر محادثة</b>
+    </div>
+    <div id="chat"></div>
+    <div id="composer" hidden>
+      <textarea id="msgInput" placeholder="اكتب رسالة"></textarea>
+      <button id="btnSend">إرسال</button>
+    </div>
+  </section>
+</div>
+
+<div id="settings" hidden>
+  <div class="box">
+    <div class="row" style="justify-content:space-between"><b>الإعدادات</b><button class="ghost" id="btnClose">إغلاق</button></div>
+    <div><b>معرّفك:</b><code id="myId"></code></div>
+    <div><b>مفتاحك العام (شاركه مع من تريد مراسلته):</b><code id="myKey"></code></div>
+    <div><b>المرحلات (كل سطر مرحل):</b>
+      <textarea id="relayList"></textarea>
+      <button id="btnSaveRelays">حفظ المرحلات</button>
+    </div>
+    <div><b>نسخة احتياطية للمفتاح:</b>
+      <button id="btnExport" class="ghost">تصدير</button>
+      <textarea id="backupBox" placeholder="الصق النسخة الاحتياطية هنا للاستعادة"></textarea>
+      <button id="btnImport" class="ghost">استعادة</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Tweet me - Phase 1 client =====
+// Identity: ECDH P-256 key pair stored locally. Address = base32(SHA-256(publicKey))[0..26].
+// Messages: ephemeral ECDH -> HKDF-SHA256 -> AES-GCM-256. Relays only see ciphertext + recipient address.
+// Multi-relay: send to all relays; receive from all relays; deduplicate by ciphertext hash.
+
+const enc = new TextEncoder(), dec = new TextDecoder();
+const $ = id => document.getElementById(id);
+const B32 = "abcdefghijklmnopqrstuvwxyz234567";
+const ECP = { name: "ECDH", namedCurve: "P-256" };
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+};
+
+let me = null;
+let contacts = store.get("tm_contacts", []);   // [{name, pub, id}]
+let messages = store.get("tm_messages", []);   // [{peer, out, text, ts, status}]
+let seen = store.get("tm_seen", []);
+let relays = store.get("tm_relays", ["http://localhost:8787"]);
+let activePeer = null;
+
+function b64(buf) { let s = ""; for (const x of new Uint8Array(buf)) s += String.fromCharCode(x); return btoa(s); }
+function unb64(s) { const bin = atob(s), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; }
+
+function base32(bytes) {
+  let bits = 0, value = 0, out = "";
+  for (const b of bytes) {
+    value = (value << 8) | b; bits += 8;
+    while (bits >= 5) { out += B32[(value >>> (bits - 5)) & 31]; bits -= 5; value &= (1 << bits) - 1; }
+  }
+  if (bits > 0) out += B32[(value << (5 - bits)) & 31];
+  return out;
+}
+
+async function addressOf(rawPub) {
+  const h = await crypto.subtle.digest("SHA-256", rawPub);
+  return base32(new Uint8Array(h).slice(0, 16));
+}
+
+async function loadIdentity() {
+  const s = store.get("tm_identity", null);
+  if (!s) return null;
+  const raw = unb64(s.rawPubB64);
+  return {
+    name: s.name,
+    rawPubB64: s.rawPubB64,
+    id: await addressOf(raw),
+    priv: await crypto.subtle.importKey("jwk", s.priv, ECP, true, ["deriveBits"])
+  };
+}
+
+async function createIdentity(name) {
+  const kp = await crypto.subtle.generateKey(ECP, true, ["deriveBits"]);
+  const raw = await crypto.subtle.exportKey("raw", kp.publicKey);
+  const priv = await crypto.subtle.exportKey("jwk", kp.privateKey);
+  store.set("tm_identity", { name, priv, rawPubB64: b64(raw) });
+  return loadIdentity();
+}
+
+async function deriveAes(sharedBits) {
+  const base = await crypto.subtle.importKey("raw", sharedBits, "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32), info: enc.encode("tweetme-v1") },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptFor(recipientPubB64, payload) {
+  const eph = await crypto.subtle.generateKey(ECP, true, ["deriveBits"]);
+  const recipPub = await crypto.subtle.importKey("raw", unb64(recipientPubB64), ECP, true, []);
+  const shared = await crypto.subtle.deriveBits({ name: "ECDH", public: recipPub }, eph.privateKey, 256);
+  const key = await deriveAes(shared);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(payload)));
+  const epk = b64(await crypto.subtle.exportKey("raw", eph.publicKey));
+  return btoa(JSON.stringify({ v: 1, epk, iv: b64(iv), ct: b64(ct) }));
+}
+
+async function tryDecrypt(blobB64) {
+  const env = JSON.parse(atob(blobB64));
+  const epk = await crypto.subtle.importKey("raw", unb64(env.epk), ECP, true, []);
+  const shared = await crypto.subtle.deriveBits({ name: "ECDH", public: epk }, me.priv, 256);
+  const key = await deriveAes(shared);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(env.iv) }, key, unb64(env.ct));
+  return JSON.parse(dec.decode(pt));
+}
+
+function saveMessages() { store.set("tm_messages", messages); }
+function saveSeen() { store.set("tm_seen", seen.slice(-3000)); }
+
+async function sendMessage() {
+  const text = $("msgInput").value.trim();
+  const c = contacts.find(x => x.pub === activePeer);
+  if (!text || !c) return;
+  const blob = await encryptFor(c.pub, { from: me.id, fromPub: me.rawPubB64, text, ts: Date.now() });
+  const results = await Promise.allSettled(relays.map(r =>
+    fetch(r + "/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: c.id, blob })
+    }).then(res => { if (!res.ok) throw new Error(res.status); return res; })
+  ));
+  const ok = results.some(r => r.status === "fulfilled");
+  messages.push({ peer: c.pub, out: true, text, ts: Date.now(), status: ok ? "sent" : "failed" });
+  saveMessages();
+  $("msgInput").value = "";
+  render();
+}
+
+async function poll() {
+  if (!me) return;
+  for (const r of relays) {
+    try {
+      const res = await fetch(`${r}/v1/inbox?id=${me.id}`);
+      if (!res.ok) continue;
+      const { messages: list } = await res.json();
+      for (const blob of list) {
+        const h = b64(await crypto.subtle.digest("SHA-256", enc.encode(blob))).slice(0, 22);
+        if (seen.includes(h)) continue;
+        seen.push(h);
+        let p = null;
+        try { p = await tryDecrypt(blob); } catch { p = null; }
+        if (!p) continue;
+        messages.push({ peer: p.fromPub, out: false, text: p.text, ts: p.ts });
+      }
+    } catch { /* relay unreachable: try the next one */ }
+  }
+  saveSeen(); saveMessages(); render();
+}
+
+async function addContact() {
+  const name = $("ctName").value.trim(), pub = $("ctKey").value.trim();
+  if (!name || !pub) return;
+  try {
+    const id = await addressOf(unb64(pub));
+    if (contacts.some(c => c.pub === pub)) return;
+    contacts.push({ name, pub, id });
+    store.set("tm_contacts", contacts);
+    $("ctName").value = ""; $("ctKey").value = "";
+    activePeer = pub; render();
+  } catch { alert("المفتاح العام غير صالح"); }
+}
+
+function render() {
+  $("onboard").hidden = !!me;
+  $("app").hidden = !me;
+  $("btnSettings").hidden = !me;
+  if (!me) return;
+
+  const names = {};
+  contacts.forEach(c => names[c.pub] = c.name);
+  messages.forEach(m => { if (!(m.peer in names)) names[m.peer] = "جهة غير مضافة"; });
+
+  const list = $("list");
+  list.innerHTML = "";
+  Object.keys(names).forEach(pub => {
+    const d = document.createElement("div");
+    d.className = "item" + (pub === activePeer ? " on" : "");
+    d.textContent = names[pub];
+    const small = document.createElement("small");
+    small.textContent = pub.slice(0, 16) + "…";
+    d.appendChild(small);
+    d.onclick = () => { activePeer = pub; render(); };
+    list.appendChild(d);
+  });
+
+  const chat = $("chat");
+  chat.innerHTML = "";
+  $("composer").hidden = !activePeer;
+  $("peerName").textContent = activePeer ? names[activePeer] : "اختر محادثة";
+  if (activePeer) {
+    messages.filter(m => m.peer === activePeer).sort((a, b) => a.ts - b.ts).forEach(m => {
+      const b = document.createElement("div");
+      b.className = "bubble" + (m.out ? " out" : "");
+      b.textContent = m.text;
+      const t = document.createElement("span");
+      t.className = "t";
+      t.textContent = new Date(m.ts).toLocaleTimeString("ar") + (m.out ? (m.status === "failed" ? " • فشل الإرسال" : " • أُرسلت") : "");
+      b.appendChild(t);
+      chat.appendChild(b);
+    });
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  $("myId").textContent = me.id;
+  $("myKey").textContent = me.rawPubB64;
+}
+
+function openSettings() {
+  $("relayList").value = relays.join("\n");
+  $("settings").hidden = false;
+}
+
+$("btnCreate").onclick = async () => {
+  const name = $("obName").value.trim();
+  if (!name) return;
+  me = await createIdentity(name);
+  render();
+};
+$("btnAdd").onclick = addContact;
+$("btnSend").onclick = sendMessage;
+$("msgInput").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+$("btnSettings").onclick = openSettings;
+$("btnClose").onclick = () => $("settings").hidden = true;
+$("btnSaveRelays").onclick = () => {
+  relays = $("relayList").value.split("\n").map(s => s.trim().replace(/\/$/, "")).filter(Boolean);
+  store.set("tm_relays", relays);
+};
+$("btnExport").onclick = () => { $("backupBox").value = localStorage.getItem("tm_identity") || ""; };
+$("btnImport").onclick = async () => {
+  try {
+    const v = $("backupBox").value.trim();
+    JSON.parse(v);
+    localStorage.setItem("tm_identity", v);
+    me = await loadIdentity();
+    render();
+  } catch { alert("النسخة الاحتياطية غير صالحة"); }
+};
+
+(async () => {
+  me = await loadIdentity();
+  render();
+  setInterval(poll, 4000);
+  poll();
+})();
+</script>
+</body>
+</html>
